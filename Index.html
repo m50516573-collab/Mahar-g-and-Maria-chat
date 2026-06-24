@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ur" dir="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Maria — My Dear Friend</title>
+<script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<style>
+  :root{
+    --bg-deep:#1b0f14;
+    --bg-card:#241218;
+    --rose:#c8385a;
+    --rose-soft:#e6657f;
+    --gold:#d9a86c;
+    --cream:#f6ece1;
+    --muted:#9c8088;
+    --bubble-me:#c8385a;
+    --bubble-them:#34202a;
+    --online:#4cd07a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; margin:0;}
+  body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background:var(--bg-deep); color:var(--cream); overflow:hidden;}
+  #app{height:100vh; width:100vw; position:relative;}
+
+  /* ===== SETUP / IDENTITY SCREEN ===== */
+  #setupScreen{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 50% 20%, rgba(200,56,90,0.35), transparent 60%), linear-gradient(160deg,#1b0f14 0%,#2a121c 60%,#170a0e 100%);
+    text-align:center; padding:32px;
+  }
+  .heart{width:70px; height:70px; position:relative; margin-bottom:20px; animation:pulse 1.8s ease-in-out infinite;}
+  .heart::before,.heart::after{content:""; position:absolute; top:0; width:38px; height:62px; background:linear-gradient(145deg,var(--rose-soft),var(--rose)); border-radius:42px 42px 0 0;}
+  .heart::before{left:35px; transform:rotate(-45deg); transform-origin:0 100%;}
+  .heart::after{left:0; transform:rotate(45deg); transform-origin:100% 100%;}
+  @keyframes pulse{0%,100%{transform:scale(1)} 50%{transform:scale(1.08)}}
+  .setup-title{font-size:24px; font-weight:700; margin:0 0 6px; font-family:Georgia,serif;}
+  .setup-sub{font-size:14px; color:var(--muted); margin:0 0 28px; max-width:280px; line-height:1.5;}
+  .role-pick{display:flex; gap:14px; margin-bottom:18px;}
+  .role-btn{
+    background:var(--bg-card); border:2px solid rgba(255,255,255,0.08); color:var(--cream);
+    padding:16px 22px; border-radius:16px; font-size:15px; font-weight:600; cursor:pointer; min-width:110px;
+  }
+  .role-btn.active{border-color:var(--rose); background:rgba(200,56,90,0.15);}
+  .btn-primary{
+    background:linear-gradient(135deg,var(--rose),var(--rose-soft)); color:#fff; border:none;
+    padding:14px 38px; border-radius:30px; font-size:16px; font-weight:600; cursor:pointer;
+    box-shadow:0 8px 24px rgba(200,56,90,0.4);
+  }
+  .btn-primary:disabled{opacity:0.4; box-shadow:none;}
+  .setup-note{font-size:11.5px; color:var(--muted); margin-top:22px; max-width:260px; line-height:1.5;}
+
+  /* ===== CHAT SCREEN ===== */
+  #chatScreen{position:absolute; inset:0; display:none; flex-direction:column; background:var(--bg-deep);}
+  .chat-header{display:flex; align-items:center; gap:12px; padding:14px 16px; background:var(--bg-card); border-bottom:1px solid rgba(255,255,255,0.06);}
+  .avatar{width:42px; height:42px; border-radius:50%; background:linear-gradient(135deg,var(--rose),var(--gold)); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; color:#fff; flex-shrink:0; position:relative;}
+  .status-dot{width:11px; height:11px; border-radius:50%; background:var(--online); position:absolute; bottom:-2px; right:-2px; border:2px solid var(--bg-card); display:none;}
+  .status-dot.show{display:block;}
+  .header-info{flex:1; min-width:0;}
+  .header-name{font-size:16px; font-weight:600; margin:0;}
+  .header-status{font-size:12.5px; color:var(--muted); margin:2px 0 0;}
+  .header-status.online{color:var(--online);}
+  .header-icons{display:flex; gap:16px;}
+  .icon-btn{cursor:pointer; opacity:0.9; font-size:19px; background:none; border:none; color:var(--cream); padding:4px;}
+  .icon-btn:active{opacity:0.5;}
+
+  .messages{flex:1; overflow-y:auto; padding:16px 12px; display:flex; flex-direction:column; gap:8px;}
+  .bubble{max-width:75%; padding:10px 14px; border-radius:16px; font-size:14.5px; line-height:1.4; position:relative; word-wrap:break-word; animation:pop .18s ease;}
+  @keyframes pop{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)}}
+  .bubble.me{align-self:flex-end; background:var(--bubble-me); color:#fff; border-bottom-right-radius:4px;}
+  .bubble.them{align-self:flex-start; background:var(--bubble-them); color:var(--cream); border-bottom-left-radius:4px;}
+  .bubble.system{align-self:center; background:rgba(255,255,255,0.06); color:var(--muted); font-size:12px; padding:6px 14px; border-radius:20px;}
+  .bubble.location-card{background:var(--bubble-them); padding:0; overflow:hidden; max-width:78%;}
+  .bubble.location-card.me{background:var(--bubble-me);}
+  .loc-map{height:120px; background:linear-gradient(135deg,#2a3a2f,#1d2922); display:flex; align-items:center; justify-content:center; font-size:28px;}
+  .loc-text{padding:10px 14px; font-size:13px;}
+  .loc-text a{color:var(--gold); text-decoration:none; font-weight:600;}
+  .meta{font-size:10.5px; opacity:0.7; margin-top:4px; display:flex; gap:4px; align-items:center; justify-content:flex-end;}
+  .tick{font-size:13px;}
+  .tick.seen{color:#7ad4ff;}
+  audio.voice-msg{max-width:220px;}
+
+  .typing-indicator{align-self:flex-start; background:var(--bubble-them); padding:10px 16px; border-radius:16px; display:none; gap:4px;}
+  .typing-indicator.show{display:flex;}
+  .typing-indicator span{width:7px; height:7px; border-radius:50%; background:var(--muted); animation:bounce 1.2s infinite;}
+  .typing-indicator span:nth-child(2){animation-delay:0.15s;}
+  .typing-indicator span:nth-child(3){animation-delay:0.3s;}
+  @keyframes bounce{0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)}}
+
+  .input-bar{display:flex; align-items:center; gap:8px; padding:10px 12px; background:var(--bg-card); border-top:1px solid rgba(255,255,255,0.06);}
+  .input-bar input[type=text]{flex:1; background:#170a0e; border:1px solid rgba(255,255,255,0.08); border-radius:24px; padding:11px 16px; color:var(--cream); font-size:14.5px; outline:none;}
+  .round-btn{width:42px; height:42px; border-radius:50%; border:none; flex-shrink:0; background:var(--bubble-them); color:var(--cream); font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer;}
+  .round-btn.send{background:var(--rose); color:#fff;}
+  .round-btn.recording{background:#e0354b; animation:recPulse 1s infinite;}
+  @keyframes recPulse{0%,100%{opacity:1} 50%{opacity:0.5}}
+  .round-btn:active{opacity:0.7;}
+
+  /* ===== LOCATION SHARING PANEL — fully visible, user-controlled ===== */
+  .loc-panel{position:absolute; left:0; right:0; bottom:0; background:var(--bg-card); border-top:1px solid rgba(255,255,255,0.1); padding:18px 16px 22px; transform:translateY(100%); transition:transform .25s ease; z-index:20; border-radius:18px 18px 0 0;}
+  .loc-panel.open{transform:translateY(0);}
+  .loc-panel h3{margin:0 0 4px; font-size:16px;}
+  .loc-panel p{margin:0 0 16px; font-size:13px; color:var(--muted); line-height:1.5;}
+  .loc-toggle-row{display:flex; align-items:center; justify-content:space-between; background:#170a0e; padding:14px 16px; border-radius:14px; margin-bottom:12px;}
+  .switch{position:relative; width:48px; height:26px;}
+  .switch input{display:none;}
+  .slider{position:absolute; inset:0; background:#3a2530; border-radius:30px; cursor:pointer; transition:.2s;}
+  .slider::before{content:""; position:absolute; width:20px; height:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s;}
+  .switch input:checked + .slider{background:var(--online);}
+  .switch input:checked + .slider::before{transform:translateX(22px);}
+  .loc-panel .btn-primary{width:100%; padding:13px;}
+  .loc-cancel{width:100%; background:none; border:none; color:var(--muted); padding:12px; margin-top:8px; font-size:14px; cursor:pointer;}
+  .overlay-dim{position:absolute; inset:0; background:rgba(0,0,0,0.5); z-index:15; display:none;}
+  .overlay-dim.show{display:block;}
+
+  .toast{position:absolute; top:14px; left:50%; transform:translateX(-50%) translateY(-60px); background:var(--bg-card); border:1px solid rgba(255,255,255,0.1); padding:12px 18px; border-radius:14px; display:flex; align-items:center; gap:10px; box-shadow:0 8px 24px rgba(0,0,0,0.4); z-index:50; transition:transform .3s ease; max-width:90%;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  .toast-dot{width:8px; height:8px; border-radius:50%; background:var(--rose); flex-shrink:0;}
+  .toast span{font-size:13.5px;}
+
+  .call-screen{position:absolute; inset:0; background:linear-gradient(160deg,#1b0f14,#2a121c); display:none; flex-direction:column; align-items:center; justify-content:space-between; z-index:40; padding:50px 24px 40px; text-align:center;}
+  .call-screen.show{display:flex;}
+  .call-avatar{width:120px; height:120px; border-radius:50%; background:linear-gradient(135deg,var(--rose),var(--gold)); display:flex; align-items:center; justify-content:center; font-size:42px; font-weight:700; color:#fff; margin-bottom:18px;}
+  .call-name{font-size:22px; font-weight:600; margin:0 0 6px;}
+  .call-status{font-size:14px; color:var(--muted); margin:0;}
+  .call-controls{display:flex; gap:26px; margin-top:30px;}
+  .call-btn{width:58px; height:58px; border-radius:50%; border:none; font-size:22px; display:flex; align-items:center; justify-content:center; cursor:pointer; background:rgba(255,255,255,0.12); color:#fff;}
+  .call-btn.end{background:#e0354b;}
+  .call-btn:active{opacity:0.7;}
+  #localVideo,#remoteVideo{width:100%; height:100%; object-fit:cover; position:absolute; inset:0; display:none; background:#000;}
+  #localVideo{width:110px; height:150px; top:20px; right:16px; border-radius:14px; z-index:2; border:2px solid rgba(255,255,255,0.2);}
+  .incoming-call{position:absolute; inset:0; background:linear-gradient(160deg,#1b0f14,#2a121c); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:45; gap:24px;}
+  .incoming-call.show{display:flex;}
+  .incoming-actions{display:flex; gap:40px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SETUP SCREEN: pick identity (only two fixed users) -->
+  <div id="setupScreen">
+    <div class="heart"></div>
+    <h1 class="setup-title">Welcome to Maria</h1>
+    <p class="setup-sub">My Dear Friend — yahan sirf hum dono hain.<br>Apna naam chunein.</p>
+    <div class="role-pick">
+      <button class="role-btn" id="pickMahar">Mahar G</button>
+      <button class="role-btn" id="pickMaria">Maria</button>
+    </div>
+    <button class="btn-primary" id="enterChatBtn" disabled>Chat Shuru Karein</button>
+    <p class="setup-note">Ye private room sirf Mahar G aur Maria ke liye hai. Koi account ya signup nahi chahiye — connection seedha device se device hota hai.</p>
+  </div>
+
+  <!-- CHAT SCREEN -->
+  <div id="chatScreen">
+    <div class="chat-header">
+      <div class="avatar" id="peerInitial">?
+        <div class="status-dot" id="statusDot"></div>
+      </div>
+      <div class="header-info">
+        <p class="header-name" id="peerName">—</p>
+        <p class="header-status" id="headerStatus">connecting...</p>
+      </div>
+      <div class="header-icons">
+        <button class="icon-btn" id="audioCallBtn" title="Audio Call">📞</button>
+        <button class="icon-btn" id="videoCallBtn" title="Video Call">🎥</button>
+      </div>
+    </div>
+
+    <div class="messages" id="messages"></div>
+    <div class="typing-indicator" id="typingIndicator"><span></span><span></span><span></span></div>
+
+    <div class="input-bar">
+      <button class="round-btn" id="locBtn" title="Share Location">📍</button>
+      <input type="text" id="msgInput" placeholder="Message likhein...">
+      <button class="round-btn" id="micBtn" title="Voice Message">🎤</button>
+      <button class="round-btn send" id="sendBtn" title="Send">➤</button>
+    </div>
+  </div>
+
+  <!-- LOCATION PANEL — fully consensual -->
+  <div class="overlay-dim" id="locOverlay"></div>
+  <div class="loc-panel" id="locPanel">
+    <h3>📍 Apni Location Share Karein</h3>
+    <p>Jab ye on hogi, dusre user ko clearly nazar aayega ke aap live location share kar rahe hain. Aap isay kabhi bhi band kar sakte hain.</p>
+    <div class="loc-toggle-row">
+      <span>Live Location Share Karein</span>
+      <div class="switch"><input type="checkbox" id="locToggle"><label class="slider" for="locToggle"></label></div>
+    </div>
+    <button class="btn-primary" id="locConfirmBtn">Bhej Dein</button>
+    <button class="loc-cancel" id="locCancelBtn">Cancel</button>
+  </div>
+
+  <div class="toast" id="toast"><div class="toast-dot"></div><span id="toastText"></span></div>
+
+  <!-- INCOMING CALL SCREEN -->
+  <div class="incoming-call" id="incomingCallScreen">
+    <div class="call-avatar" id="incomingAvatar">?</div>
+    <p class="call-name" id="incomingName">Incoming call...</p>
+    <div class="incoming-actions">
+      <button class="call-btn end" id="declineCallBtn">✕</button>
+      <button class="call-btn" style="background:var(--online);" id="acceptCallBtn">✓</button>
+    </div>
+  </div>
+
+  <!-- AUDIO CALL SCREEN -->
+  <div class="call-screen" id="audioCallScreen">
+    <div></div>
+    <div>
+      <div class="call-avatar" id="audioCallAvatar">M</div>
+      <p class="call-name" id="audioCallName">Maria</p>
+      <p class="call-status" id="audioCallStatus">Ring ho raha hai...</p>
+    </div>
+    <div class="call-controls">
+      <button class="call-btn" id="muteBtn">🎤</button>
+      <button class="call-btn end" id="endAudioCallBtn">📞</button>
+      <button class="call-btn" id="speakerBtn">🔊</button>
+    </div>
+  </div>
+
+  <!-- VIDEO CALL SCREEN -->
+  <div class="call-screen" id="videoCallScreen">
+    <video id="remoteVideo" autoplay playsinline></video>
+    <video id="localVideo" autoplay playsinline muted></video>
+    <div></div>
+    <div>
+      <p class="call-name" id="videoCallName">Maria</p>
+      <p class="call-status" id="videoCallStatus">Connecting...</p>
+    </div>
+    <div class="call-controls">
+      <button class="call-btn" id="muteVideoBtn">🎤</button>
+      <button class="call-btn end" id="endVideoCallBtn">📞</button>
+      <button class="call-btn" id="flipCamBtn">🔄</button>
+    </div>
+  </div>
+
+</div>
+
+<audio id="remoteAudio" autoplay></audio>
+
+<script>
+/* =========================================================
+   MARIA CHAT — real-time, 2-person private chat & calls
+   Architecture (same family as MaharG-Chat.html):
+   - Gun.js  -> decentralized realtime DB for messages, presence,
+                typing status, last-seen, consensual location pings
+   - PeerJS  -> WebRTC signalling for audio/video calls
+   - No backend server, no signup. Two fixed identities: "mahar" & "maria"
+
+   CONSENT MODEL (do not change this without explicit re-confirmation):
+   Location is only ever written to Gun.js when the LOCAL user opens
+   the location panel, flips the toggle ON, and presses "Bhej Dein".
+   There is no code path that reads geolocation automatically, on
+   chat-open, on message-send, or in the background. Keep it that way.
+   ========================================================= */
+
+const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+const ROOM = 'mariag-private-room-v1'; // shared room namespace for the two fixed users
+
+let myId = null;       // 'mahar' or 'maria'
+let peerId = null;     // the other one
+const NAMES = { mahar: 'Mahar G', maria: 'Maria' };
+
+// ---- DOM refs ----
+const messagesEl = document.getElementById('messages');
+const statusDot = document.getElementById('statusDot');
+const headerStatus = document.getElementById('headerStatus');
+const peerNameEl = document.getElementById('peerName');
+const peerInitialEl = document.getElementById('peerInitial');
+const typingIndicator = document.getElementById('typingIndicator');
+const toast = document.getElementById('toast');
+const toastText = document.getElementById('toastText');
+const msgInput = document.getElementById('msgInput');
+
+function showToast(msg, duration = 3200) {
+  toastText.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+// =========================================================
+// SYSTEM NOTIFICATIONS — phone-level banner/sound, like WhatsApp.
+// Works while the app is open in foreground, minimized, or in a
+// background browser tab. Does NOT work if the app/tab is fully
+// closed — that would require a push server, which this build
+// intentionally does not use.
+// =========================================================
+function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function showSystemNotification(title, body) {
+  // Only fire the OS-level notification when the tab isn't the one
+  // currently in focus — if the user is actively looking at the chat,
+  // the in-app toast/bubble is enough (same behavior as WhatsApp).
+  if (document.visibilityState === 'visible' && document.hasFocus()) return;
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: 'https://cdn-icons-png.flaticon.com/512/2950/2950157.png',
+      tag: 'maria-chat'
+    });
+    n.onclick = () => { window.focus(); n.close(); };
+  } catch (e) { /* some mobile browsers restrict this; fail silently */ }
+}
+
+// ---- Identity selection ----
+let chosen = null;
+document.getElementById('pickMahar').addEventListener('click', () => choose('mahar'));
+document.getElementById('pickMaria').addEventListener('click', () => choose('maria'));
+function choose(id) {
+  chosen = id;
+  document.getElementById('pickMahar').classList.toggle('active', id === 'mahar');
+  document.getElementById('pickMaria').classList.toggle('active', id === 'maria');
+  document.getElementById('enterChatBtn').disabled = false;
+}
+document.getElementById('enterChatBtn').addEventListener('click', () => {
+  if (!chosen) return;
+  myId = chosen;
+  peerId = chosen === 'mahar' ? 'maria' : 'mahar';
+  localStorage.setItem('maria_chat_identity', myId); // remember choice on this device only
+  startApp();
+});
+
+// auto-resume identity if already chosen on this device before
+(function tryResume() {
+  const saved = localStorage.getItem('maria_chat_identity');
+  if (saved && NAMES[saved]) {
+    choose(saved);
+  }
+})();
+
+function startApp() {
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('chatScreen').style.display = 'flex';
+  peerNameEl.textContent = NAMES[peerId];
+  peerInitialEl.textContent = NAMES[peerId][0];
+  document.getElementById('incomingAvatar').textContent = NAMES[peerId][0];
+  document.getElementById('incomingName').textContent = `${NAMES[peerId]} calling...`;
+  document.getElementById('audioCallAvatar').textContent = NAMES[peerId][0];
+  document.getElementById('audioCallName').textContent = NAMES[peerId];
+  document.getElementById('videoCallName').textContent = NAMES[peerId];
+
+  initGunSync();
+  initPresence();
+  initPeerJS();
+  requestNotificationPermission();
+}
+
+// =========================================================
+// GUN.JS — messages, presence, typing, last-seen, location
+// =========================================================
+const room = gun.get(ROOM);
+const chatNode = room.get('messages');
+const presenceNode = room.get('presence').get(peerId === 'mahar' ? 'mahar' : 'maria');
+const myPresenceNode = room.get('presence').get(myId);
+const typingNode = room.get('typing').get(peerId);
+const myTypingNode = room.get('typing').get(myId);
+
+const renderedIds = new Set();
+
+function initGunSync() {
+  chatNode.map().on((data, key) => {
+    if (!data || renderedIds.has(key)) return;
+    renderedIds.add(key);
+    renderMessage(data, key);
+  });
+}
+
+function renderMessage(data, key) {
+  const who = data.sender === myId ? 'me' : 'them';
+
+  if (data.type === 'location') {
+    addLocationCard(who, data.lat, data.lng, data.time);
+    if (who === 'them') showSystemNotification(NAMES[peerId], '📍 Live location share ki hai');
+    return;
+  }
+  if (data.type === 'voice') {
+    addVoiceBubble(who, data.audio, data.time);
+    if (who === 'them') showSystemNotification(NAMES[peerId], '🎤 Voice message');
+    return;
+  }
+  addBubble(data.text, who, data.time, key);
+
+  if (who === 'them') {
+    chatNode.get(key).get('seen').put(true);
+    showSystemNotification(NAMES[peerId], data.text);
+  }
+}
+
+function addBubble(text, who, time, key) {
+  const wrap = document.createElement('div');
+  wrap.className = `bubble ${who}`;
+  wrap.textContent = text;
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.innerHTML = `<span>${formatTime(time)}</span>`;
+  if (who === 'me') {
+    const tick = document.createElement('span');
+    tick.className = 'tick';
+    tick.textContent = '✓✓';
+    meta.appendChild(tick);
+    if (key) {
+      chatNode.get(key).get('seen').on(val => {
+        if (val) tick.classList.add('seen');
+      });
+    }
+  }
+  wrap.appendChild(meta);
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function addVoiceBubble(who, audioDataUrl, time) {
+  const wrap = document.createElement('div');
+  wrap.className = `bubble ${who}`;
+  const audio = document.createElement('audio');
+  audio.className = 'voice-msg';
+  audio.controls = true;
+  audio.src = audioDataUrl;
+  wrap.appendChild(audio);
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.innerHTML = `<span>${formatTime(time)}</span>`;
+  wrap.appendChild(meta);
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function addLocationCard(who, lat, lng, time) {
+  const wrap = document.createElement('div');
+  wrap.className = `bubble location-card ${who}`;
+  const mapLink = `https://www.google.com/maps?q=${lat},${lng}`;
+  wrap.innerHTML = `
+    <div class="loc-map">🗺️</div>
+    <div class="loc-text">📍 Live Location Shared<br><a href="${mapLink}" target="_blank" rel="noopener">Map par dekhein</a></div>`;
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function formatTime(ts) {
+  return new Date(ts || Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+// ---- Sending text ----
+document.getElementById('sendBtn').addEventListener('click', sendMessage);
+msgInput.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+
+function sendMessage() {
+  const val = msgInput.value.trim();
+  if (!val) return;
+  const key = `${myId}-${Date.now()}`;
+  chatNode.get(key).put({ sender: myId, text: val, time: Date.now(), type: 'text', seen: false });
+  msgInput.value = '';
+  myTypingNode.put(false);
+}
+
+// ---- Typing indicator (real, synced via Gun) ----
+msgInput.addEventListener('input', () => {
+  myTypingNode.put(true);
+  clearTimeout(msgInput._t);
+  msgInput._t = setTimeout(() => myTypingNode.put(false), 1200);
+});
+typingNode.on(val => {
+  typingIndicator.classList.toggle('show', !!val);
+});
+
+// =========================================================
+// PRESENCE — online/offline + last seen (real, via Gun heartbeat)
+// =========================================================
+function initPresence() {
+  myPresenceNode.put({ online: true, lastSeen: Date.now() });
+  const heartbeat = setInterval(() => {
+    myPresenceNode.put({ online: true, lastSeen: Date.now() });
+  }, 8000);
+
+  window.addEventListener('beforeunload', () => {
+    myPresenceNode.put({ online: false, lastSeen: Date.now() });
+  });
+
+  presenceNode.on(data => {
+    if (!data) return;
+    const isRecent = data.online && (Date.now() - data.lastSeen < 20000);
+    statusDot.classList.toggle('show', isRecent);
+    if (isRecent) {
+      headerStatus.textContent = 'online';
+      headerStatus.classList.add('online');
+    } else {
+      headerStatus.classList.remove('online');
+      headerStatus.textContent = data.lastSeen
+        ? `last seen ${formatTime(data.lastSeen)}`
+        : 'offline';
+      // Notification: peer was waiting -> if I just came online, let me know
+      if (data.waitingFor === myId) {
+        const msg = `${NAMES[peerId]} ${peerId === 'maria' ? 'ap ka wait kar rahi hai' : 'ap ka wait kar rahay hain'}`;
+        showToast(msg);
+        showSystemNotification(NAMES[peerId], msg);
+      }
+    }
+  });
+}
+
+// When I send a message and peer is offline, flag that I'm waiting for them.
+// This powers the "Mahar G is waiting for you" notification when they reopen the app.
+function flagWaiting() {
+  myPresenceNode.get('waitingFor').put(peerId);
+}
+
+// ---- Voice messages ----
+const micBtn = document.getElementById('micBtn');
+let mediaRecorder, audioChunks = [], isRecording = false;
+
+micBtn.addEventListener('click', async () => {
+  if (!isRecording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const key = `${myId}-${Date.now()}`;
+          chatNode.get(key).put({ sender: myId, audio: reader.result, time: Date.now(), type: 'voice' });
+        };
+        reader.readAsDataURL(blob);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mediaRecorder.start();
+      isRecording = true;
+      micBtn.classList.add('recording');
+      showToast('Recording... dobara dabayen rokne ke liye');
+    } catch (e) {
+      showToast('Mic access nahi mila');
+    }
+  } else {
+    mediaRecorder.stop();
+    isRecording = false;
+    micBtn.classList.remove('recording');
+  }
+});
+
+// =========================================================
+// LOCATION SHARING — consensual only. See header note above.
+// =========================================================
+const locPanel = document.getElementById('locPanel');
+const locOverlay = document.getElementById('locOverlay');
+const locToggle = document.getElementById('locToggle');
+
+document.getElementById('locBtn').addEventListener('click', () => {
+  locPanel.classList.add('open');
+  locOverlay.classList.add('show');
+});
+document.getElementById('locCancelBtn').addEventListener('click', closeLocPanel);
+locOverlay.addEventListener('click', closeLocPanel);
+function closeLocPanel() {
+  locPanel.classList.remove('open');
+  locOverlay.classList.remove('show');
+  locToggle.checked = false;
+}
+
+document.getElementById('locConfirmBtn').addEventListener('click', () => {
+  if (!locToggle.checked) {
+    showToast('Location share karne ke liye toggle on karein');
+    return;
+  }
+  if (!navigator.geolocation) {
+    showToast('Location feature is browser mein available nahi hai');
+    closeLocPanel();
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const key = `${myId}-${Date.now()}`;
+      chatNode.get(key).put({
+        sender: myId, type: 'location',
+        lat: pos.coords.latitude, lng: pos.coords.longitude, time: Date.now()
+      });
+      showToast(`Aapki location ${NAMES[peerId]} ko bhej di gayi`);
+      closeLocPanel();
+    },
+    () => { showToast('Location access denied ya nahi mil saka'); closeLocPanel(); },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+});
+
+// =========================================================
+// PEERJS — audio & video calls (WebRTC)
+// Peer IDs are deterministic from the fixed room+identity so
+// both sides can always find each other without a server.
+// =========================================================
+const myPeer = new Peer(`${ROOM}-${myId}`, {
+  config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+});
+
+let currentCall = null;
+let localStream = null;
+let callMode = null; // 'audio' | 'video'
+
+myPeer.on('call', incomingCall => {
+  currentCall = incomingCall;
+  callMode = incomingCall.metadata && incomingCall.metadata.video ? 'video' : 'audio';
+  document.getElementById('incomingCallScreen').classList.add('show');
+});
+
+document.getElementById('acceptCallBtn').addEventListener('click', async () => {
+  document.getElementById('incomingCallScreen').classList.remove('show');
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: callMode === 'video' });
+    currentCall.answer(localStream);
+    setupCallUI(currentCall, callMode);
+  } catch (e) {
+    showToast('Camera/Mic access nahi mila');
+  }
+});
+document.getElementById('declineCallBtn').addEventListener('click', () => {
+  document.getElementById('incomingCallScreen').classList.remove('show');
+  if (currentCall) currentCall.close();
+});
+
+document.getElementById('audioCallBtn').addEventListener('click', () => placeCall('audio'));
+document.getElementById('videoCallBtn').addEventListener('click', () => placeCall('video'));
+
+async function placeCall(mode) {
+  callMode = mode;
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: mode === 'video' });
+    const call = myPeer.call(`${ROOM}-${peerId}`, localStream, { metadata: { video: mode === 'video' } });
+    currentCall = call;
+    setupCallUI(call, mode);
+  } catch (e) {
+    showToast('Camera/Mic access nahi mila');
+  }
+}
+
+function setupCallUI(call, mode) {
+  const screen = document.getElementById(mode === 'video' ? 'videoCallScreen' : 'audioCallScreen');
+  screen.classList.add('show');
+
+  if (mode === 'video') {
+    const localVideo = document.getElementById('localVideo');
+    localVideo.srcObject = localStream;
+    localVideo.style.display = 'block';
+    document.getElementById('videoCallStatus').textContent = 'Ring ho raha hai...';
+  } else {
+    document.getElementById('audioCallStatus').textContent = 'Ring ho raha hai...';
+  }
+
+  call.on('stream', remoteStream => {
+    if (mode === 'video') {
+      const remoteVideo = document.getElementById('remoteVideo');
+      remoteVideo.srcObject = remoteStream;
+      remoteVideo.style.display = 'block';
+      document.getElementById('videoCallStatus').textContent = '00:00';
+    } else {
+      document.getElementById('remoteAudio').srcObject = remoteStream;
+      document.getElementById('audioCallStatus').textContent = '00:00';
+    }
+    startCallTimer(mode === 'video' ? 'videoCallStatus' : 'audioCallStatus');
+  });
+
+  call.on('close', () => endCallUI(mode));
+}
+
+document.getElementById('endAudioCallBtn').addEventListener('click', () => { if (currentCall) currentCall.close(); endCallUI('audio'); });
+document.getElementById('endVideoCallBtn').addEventListener('click', () => { if (currentCall) currentCall.close(); endCallUI('video'); });
+
+function endCallUI(mode) {
+  stopCallTimer();
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+  document.getElementById('audioCallScreen').classList.remove('show');
+  document.getElementById('videoCallScreen').classList.remove('show');
+  const localVideo = document.getElementById('localVideo');
+  const remoteVideo = document.getElementById('remoteVideo');
+  localVideo.srcObject = null; localVideo.style.display = 'none';
+  remoteVideo.srcObject = null; remoteVideo.style.display = 'none';
+}
+
+document.getElementById('muteBtn').addEventListener('click', e => toggleMute(e.target));
+document.getElementById('muteVideoBtn').addEventListener('click', e => toggleMute(e.target));
+document.getElementById('speakerBtn').addEventListener('click', e => e.target.style.opacity = e.target.style.opacity === '0.4' ? '1' : '0.4');
+document.getElementById('flipCamBtn').addEventListener('click', e => e.target.style.opacity = e.target.style.opacity === '0.4' ? '1' : '0.4');
+
+function toggleMute(btn) {
+  if (!localStream) return;
+  const track = localStream.getAudioTracks()[0];
+  if (track) {
+    track.enabled = !track.enabled;
+    btn.style.opacity = track.enabled ? '1' : '0.4';
+  }
+}
+
+let callTimerInterval = null;
+function startCallTimer(elId) {
+  let seconds = 0;
+  clearInterval(callTimerInterval);
+  callTimerInterval = setInterval(() => {
+    seconds++;
+    const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    const el = document.getElementById(elId);
+    if (el) el.textContent = `${m}:${s}`;
+  }, 1000);
+}
+function stopCallTimer() { clearInterval(callTimerInterval); }
+
+function initPeerJS() {
+  myPeer.on('error', err => console.warn('PeerJS error:', err));
+}
+</script>
+</body>
+</html>
