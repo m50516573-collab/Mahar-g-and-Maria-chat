@@ -1,0 +1,12 @@
+{
+  "name": "maria-push-relay",
+  "version": "1.0.0",
+  "description": "Push notification relay for Maria Chat - watches Firebase Realtime Database and sends FCM pushes. No billing required.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}
